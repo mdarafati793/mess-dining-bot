@@ -64,7 +64,7 @@ def process_meal_count(message):
         mess_data['meal_count'] = int(message.text)
         msg = bot.reply_to(message, "👤 **ডাইনিং ম্যানেজারের নাম কী?**", parse_mode="Markdown")
         bot.register_next_step_handler(msg, process_manager_name)
-    except:
+    except Exception:
         msg = bot.reply_to(message, "⚠️ শুধু সংখ্যা দিন। কয় বেলা মিল চলবে?")
         bot.register_next_step_handler(msg, process_meal_count)
 
@@ -84,15 +84,16 @@ def process_total_members(message):
         mess_data['total_members'] = total
         msg = bot.reply_to(message, f"✅ ঠিক আছে! এবার একে একে {total} জনের নাম দিন।\n\n**(01) প্রথম জনের নাম লিখুন:**", parse_mode="Markdown")
         bot.register_next_step_handler(msg, process_member_names, 1)
-    except:
+    except Exception:
         msg = bot.reply_to(message, "⚠️ শুধু সংখ্যা দিন। মোট মেম্বার কতজন?")
         bot.register_next_step_handler(msg, process_total_members)
 
 def process_member_names(message, index):
     name = message.text
-    mess_data['members'].append(name)
-    mess_data['balances'][name] = 0.0
-    mess_data['meals'][name] = 0.0
+    if name not in mess_data['members']:
+        mess_data['members'].append(name)
+        mess_data['balances'][name] = 0.0
+        mess_data['meals'][name] = 0.0
     
     bot.reply_to(message, f"({index:02d}). {name} ✅")
     
@@ -132,22 +133,17 @@ def show_dashboard(message):
 @bot.callback_query_handler(func=lambda call: True)
 def handle_query(call):
     chat_id = call.message.chat.id
-    message_id = call.message.message_id
-    
-    # বোতামের লোডিং বন্ধ করার জন্য
-    bot.answer_callback_query(call.id)
+    try:
+        bot.answer_callback_query(call.id)
+    except Exception:
+        pass
 
-    # ড্যাশবোর্ডে ফিরে যাওয়া
     if call.data == "go_to_home":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         show_dashboard(call.message)
         return
 
     # ১. মিল এন্ট্রি
     if call.data == "btn_meal_entry":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         markup = InlineKeyboardMarkup(row_width=1)
         for name in mess_data['members']:
             markup.add(InlineKeyboardButton(name, callback_data=f"addmeal_{name}"))
@@ -156,8 +152,6 @@ def handle_query(call):
 
     # ২. অ্যাড ব্যালেন্স
     elif call.data == "btn_add_balance":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         markup = InlineKeyboardMarkup(row_width=1)
         for name in mess_data['members']:
             markup.add(InlineKeyboardButton(name, callback_data=f"addbal_{name}"))
@@ -166,8 +160,6 @@ def handle_query(call):
 
     # ৩. বাজার খরচ ও বাকি
     elif call.data == "btn_bazar":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         markup = InlineKeyboardMarkup(row_width=1)
         markup.add(
             InlineKeyboardButton("➕ বাজার খরচ যোগ", callback_data="bazar_add"),
@@ -179,8 +171,6 @@ def handle_query(call):
 
     # ৪. চলতি মিল রেট
     elif call.data == "btn_meal_rate":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         total_meals = sum(mess_data['meals'].values())
         rate = mess_data['bazar_cost'] / total_meals if total_meals > 0 else 0
         text = f"📈 **চলতি মিল রেট:**\n\n🛒 মোট বাজার খরচ: {mess_data['bazar_cost']} টাকা\n🍽 মোট মিল: {total_meals} টি\n\n💵 **বর্তমান মিল রেট: {rate:.2f} টাকা**"
@@ -191,8 +181,6 @@ def handle_query(call):
 
     # ৫. মেম্বার ব্যালেন্স
     elif call.data == "btn_member_balance":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         total_meals = sum(mess_data['meals'].values())
         rate = mess_data['bazar_cost'] / total_meals if total_meals > 0 else 0
         text = "⚖️ **মেম্বারদের ব্যালেন্সের অবস্থা:**\n\n"
@@ -208,8 +196,6 @@ def handle_query(call):
 
     # ৬. খালার বিল
     elif call.data == "btn_khala_bill":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         markup = InlineKeyboardMarkup(row_width=1)
         markup.add(
             InlineKeyboardButton("➕ Add Bill", callback_data="khala_add"),
@@ -221,22 +207,16 @@ def handle_query(call):
 
     # ৭. হিসাব সংশোধন
     elif call.data == "btn_edit_info":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         msg = bot.send_message(chat_id, "✏️ **সংশোধন:** যার তথ্য সংশোধন করবেন তার নাম এবং সঠিক মিল/টাকা কমা দিয়ে লিখে দিন।\n(যেমন: Arafat, 12)")
         bot.register_next_step_handler(msg, process_edit_info)
 
     # ৮. মেস নোটস
     elif call.data == "btn_notes":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         msg = bot.send_message(chat_id, "📝 **মেস নোট:** তারিখসহ গুরুত্বপূর্ণ নোটটি লিখুন:")
         bot.register_next_step_handler(msg, process_add_note)
 
     # ৯. হিস্টোরি/লগ
     elif call.data == "btn_history":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         if not mess_data['history']:
             text = "📜 এখনো কোনো হিস্টোরি রেকর্ড করা হয়নি।"
         else:
@@ -248,8 +228,6 @@ def handle_query(call):
 
     # ১০. মেস রিসিট
     elif call.data == "btn_receipt":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         total_meals = sum(mess_data['meals'].values())
         rate = mess_data['bazar_cost'] / total_meals if total_meals > 0 else 0
         receipt = f"📄 **মেসের চূড়ান্ত হিসাব রিসিট** 📄\n"
@@ -269,53 +247,37 @@ def handle_query(call):
     # --- সাব-বাটন অ্যাকশন ---
     elif call.data.startswith("addmeal_"):
         name = call.data.split("_")[1]
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         msg = bot.send_message(chat_id, f"🍽 {name} এর আজকের মোট মিল সংখ্যা লিখুন (যেমন: 2):")
         bot.register_next_step_handler(msg, lambda m: save_meal(m, name))
         
     elif call.data.startswith("addbal_"):
         name = call.data.split("_")[1]
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         msg = bot.send_message(chat_id, f"💰 {name} কত টাকা জমা দিয়েছেন তা লিখুন:")
         bot.register_next_step_handler(msg, lambda m: save_balance(m, name))
 
     elif call.data == "bazar_add":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         msg = bot.send_message(chat_id, "🛒 বাজারের মোট টাকা এবং কী কী কেনা হয়েছে লিখুন:\n(যেমন: ৫০০, চাল ও তেল)")
         bot.register_next_step_handler(msg, save_bazar)
 
     elif call.data == "bazar_baki_add":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         msg = bot.send_message(chat_id, "🔴 কত টাকা বাজার বাকি হয়েছে তা লিখুন:")
         bot.register_next_step_handler(msg, save_baki)
 
     elif call.data == "bazar_pay":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         msg = bot.send_message(chat_id, "🟢 কত টাকা বাকি পরিশোধ করেছেন তা লিখুন:")
         bot.register_next_step_handler(msg, pay_baki)
 
     elif call.data == "khala_add":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         msg = bot.send_message(chat_id, "👩‍🍳 খালার মোট বিলের পরিমাণ লিখুন:")
         bot.register_next_step_handler(msg, save_khala_bill)
 
     elif call.data == "khala_paid_list":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         paid = "\n".join(mess_data['khala_paid']) if mess_data['khala_paid'] else "কেউ দেয়নি।"
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton("🏠 ড্যাশবোর্ড / হোম", callback_data="go_to_home"))
         bot.send_message(chat_id, f"✅ **বিল পরিশোধিত মেম্বারদের তালিকা:**\n{paid}", reply_markup=markup)
 
     elif call.data == "khala_unpaid_list":
-        try: bot.delete_message(chat_id, message_id)
-        except: pass
         unpaid = [m for m in mess_data['members'] if m not in mess_data['khala_paid']]
         unpaid_text = "\n".join(unpaid) if unpaid else "সবাই পরিশোধ করেছে!"
         markup = InlineKeyboardMarkup()
@@ -331,7 +293,6 @@ def handle_query(call):
         markup.add(InlineKeyboardButton("🏠 ড্যাশবোর্ড / হোম", callback_data="go_to_home"))
         bot.send_message(chat_id, f"✅ {name} এর খালার বিল পেইড হিসেবে চিহ্নিত হয়েছে।", reply_markup=markup)
 
-
 # --- ডেটা সংরক্ষণ ফাংশন ---
 def save_meal(message, name):
     try:
@@ -340,7 +301,7 @@ def save_meal(message, name):
         mess_data['history'].append(f"🍽 {name} এর {val}টি মিল যোগ করা হয়েছে।")
         bot.reply_to(message, f"✅ {name} এর {val}টি মিল সফলভাবে যোগ হয়েছে।")
         show_dashboard(message)
-    except:
+    except Exception:
         bot.reply_to(message, "⚠️ ভুল ইনপুট। আবার চেষ্টা করুন।")
 
 def save_balance(message, name):
@@ -350,7 +311,7 @@ def save_balance(message, name):
         mess_data['history'].append(f"💰 {name} এর {val} টাকা জমা হয়েছে।")
         bot.reply_to(message, f"✅ {name} এর {val} টাকা অ্যাড হয়েছে।")
         show_dashboard(message)
-    except:
+    except Exception:
         bot.reply_to(message, "⚠️ ভুল ইনপুট।")
 
 def save_bazar(message):
@@ -362,7 +323,7 @@ def save_bazar(message):
         mess_data['history'].append(f"🛒 {cost} টাকার বাজার খরচ যোগ হয়েছে।")
         bot.reply_to(message, "✅ বাজার খরচ সফলভাবে যোগ হয়েছে।")
         show_dashboard(message)
-    except:
+    except Exception:
         bot.reply_to(message, "⚠️ ভুল ইনপুট। (যেমন: ৫০০, চাল)")
 
 def save_baki(message):
@@ -372,7 +333,7 @@ def save_baki(message):
         mess_data['history'].append(f"🔴 {val} টাকা বাজার বাকি হয়েছে।")
         bot.reply_to(message, "✅ বাজার বাকি যোগ হয়েছে।")
         show_dashboard(message)
-    except:
+    except Exception:
         bot.reply_to(message, "⚠️ শুধু সংখ্যা দিন।")
 
 def pay_baki(message):
@@ -383,7 +344,7 @@ def pay_baki(message):
         mess_data['history'].append(f"🟢 {val} টাকা বাকি পরিশোধ করা হয়েছে।")
         bot.reply_to(message, "✅ বাকি পরিশোধের হিসাব যুক্ত হয়েছে।")
         show_dashboard(message)
-    except:
+    except Exception:
         bot.reply_to(message, "⚠️ শুধু সংখ্যা দিন।")
 
 def save_khala_bill(message):
@@ -394,7 +355,7 @@ def save_khala_bill(message):
             markup.add(InlineKeyboardButton(name, callback_data=f"kpaid_{name}"))
         markup.add(InlineKeyboardButton("🏠 ড্যাশবোর্ড / হোম", callback_data="go_to_home"))
         bot.send_message(message.chat.id, "✅ খালার বিল যুক্ত হয়েছে। যারা বিল দিয়েছে তাদের টিক দিন:", reply_markup=markup)
-    except:
+    except Exception:
         bot.reply_to(message, "⚠️ শুধু সংখ্যা দিন।")
 
 def process_edit_info(message):
@@ -409,7 +370,7 @@ def process_edit_info(message):
             show_dashboard(message)
         else:
             bot.reply_to(message, "⚠️ মেম্বার খুঁজে পাওয়া যায়নি।")
-    except:
+    except Exception:
         bot.reply_to(message, "⚠️ ফরম্যাট ভুল! (যেমন: Arafat, 12)")
 
 def process_add_note(message):
@@ -440,19 +401,19 @@ def chat_with_ai(message):
     - Total Bazar Cost: {mess_data['bazar_cost']}
     - Notes: {mess_data['notes']}
     """
-    
     try:
         response = ai_model.generate_content([system_prompt, user_query])
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton("🏠 ড্যাশবোর্ড / হোম", callback_data="go_to_home"))
         bot.reply_to(message, response.text, reply_markup=markup, parse_mode="Markdown")
-    except Exception as e:
+    except Exception:
         bot.reply_to(message, "🤖 AI রেসপন্স করতে পারছে না।")
 
 # --- Bot Polling ---
 if __name__ == "__main__":
     server_thread = threading.Thread(target=run_server)
+    server_thread.daemon = True
     server_thread.start()
-    print("AI-Powered Mess Bot updated and running perfectly...")
+    print("AI-Powered Mess Bot running perfectly...")
     bot.infinity_polling()
     
