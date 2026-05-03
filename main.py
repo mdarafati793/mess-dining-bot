@@ -5,7 +5,7 @@ import requests
 from flask import Flask
 from threading import Thread
 
-# ---------------- FLASK SERVER (For UptimeRobot & Render) ----------------
+# ---------------- FLASK SERVER ----------------
 app = Flask('')
 
 @app.route('/')
@@ -19,10 +19,11 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# সার্ভার সচল করা
+# Flask সার্ভার চালু করা
 keep_alive()
 
 # ---------------- CONFIG & TOKEN ----------------
+# আপনার দেওয়া আসল টোকেনটি এখানে একদম হুবহু বসানো হয়েছে
 TOKEN = "8581132689:AAF_x23qBXyzAjpckVTX602J80MSe8Pk0Oc"
 API_URL = f"https://api.telegram.org/bot{TOKEN}"
 
@@ -177,7 +178,22 @@ def handle_callback(chat_id, message_id, callback_id, query_data):
         send_message(chat_id, "👤 <b>Manager নাম লিখো:</b>")
 
 # ---------------- POLLING (MAIN) ----------------
+def clear_old_updates():
+    print("পুরানো মেসেজগুলো ক্লিয়ার করা হচ্ছে...")
+    offset = -1
+    try:
+        response = requests.get(f"{API_URL}/getUpdates", params={"offset": offset, "timeout": 1})
+        if response.status_code == 200:
+            updates = response.json().get("result", [])
+            if updates:
+                last_update_id = updates[-1]["update_id"]
+                requests.get(f"{API_URL}/getUpdates", params={"offset": last_update_id + 1})
+                print("সব পুরানো মেসেজ মুছে ফেলা হয়েছে।")
+    except Exception as e:
+        print(f"Error clearing updates: {e}")
+
 def main():
+    clear_old_updates()
     print("বটটি এখন সচল আছে... (Polling Mode)")
     offset = 0
     while True:
@@ -209,4 +225,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-        
+    
