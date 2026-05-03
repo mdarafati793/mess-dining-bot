@@ -2,10 +2,18 @@ import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from flask import Flask
 import threading
+import google.generativeai as genai
 
-TOKEN = "8581132689:AAF_x23qBXyzAjpckVTX602J80MSe8Pk0Oc" # আপনার বটের আসল টোকেন দিন
+# --- API টোকেন ও কী সেটআপ ---
+TOKEN = "8581132689:AAF_x23qBXyzAjpckVTX602J80MSe8Pk0Oc"
+GEMINI_KEY = "AIzaSyDZIkwrK-B9EfcpgtMLKOX1eNY0S4ZRULM"
+
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
+
+# Gemini AI কনফিগারেশন
+genai.configure(api_key=GEMINI_KEY)
+ai_model = genai.GenerativeModel('gemini-1.5-flash')
 
 # --- মেসের ডেটাবেস (In-Memory) ---
 mess_data = {
@@ -28,7 +36,7 @@ mess_data = {
 
 @app.route('/')
 def index():
-    return "Bot is running perfectly!"
+    return "AI-Powered Mess Bot is running perfectly!"
 
 def run_server():
     app.run(host="0.0.0.0", port=8080)
@@ -120,7 +128,7 @@ def show_dashboard(message):
     bot.send_message(message.chat.id, dashboard_text, reply_markup=markup, parse_mode="Markdown")
 
 # --- বাটনের ক্লিক হ্যান্ডলার (সবগুলোর আসল কাজ) ---
-@bot.callback_query_handler(func=lambda call: True)
+@bot.callback_query_handler(func=lambda call: not call.data.startswith("kpaid_"))
 def handle_query(call):
     chat_id = call.message.chat.id
     
@@ -332,6 +340,44 @@ def process_add_note(message):
     mess_data['history'].append(f"📝 নতুন নোট যুক্ত করা হয়েছে।")
     bot.reply_to(message, "✅ নোট সফলভাবে সেভ হয়েছে।")
 
+# --- AI Chat Handler (Gemini-Powered) ---
+@bot.message_handler(func=lambda message: True)
+def chat_with_ai(message):
+    # মেস সেটআপ করা না থাকলে AI রেসপন্স করবে না
+    if not mess_data['mess_name']:
+        bot.reply_to(message, "⚠️ আপনার মেস সেটআপ করা নেই। দয়া করে প্রথমে /start কমান্ড দিন।")
+        return
+
+    user_query = message.text
+    bot.send_chat_action(message.chat.id, 'typing')
+    
+    # AI প্রম্পটে সরাসরি মেসের ডাটা পাঠানো হচ্ছে
+    system_prompt = f"""
+    You are an intelligent Mess Manager AI. You have direct access to the current mess database.
+    Your job is to answer the user's queries in Bengali politely and summarize the mess calculation.
+
+    Here is the current mess data:
+    - Mess Name: {mess_data['mess_name']}
+    - Manager Name: {mess_data['manager_name']}
+    - Start Date: {mess_data['start_date']}
+    - Member List: {mess_data['members']}
+    - Meal Data (Total meals of each member): {mess_data['meals']}
+    - Member Balances: {mess_data['balances']}
+    - Bazar Cost: {mess_data['bazar_cost']}
+    - Bazar List: {mess_data['bazar_list']}
+    - Bazar Baki: {mess_data['bazar_baki']}
+    - Mess Notes: {mess_data['notes']}
+
+    Please answer the user's question directly, clearly, and elegantly based on the provided information. 
+    Keep formatting clean, scannable, and easy to read.
+    """
+    
+    try:
+        response = ai_model.generate_content([system_prompt, user_query])
+        bot.reply_to(message, response.text, parse_mode="Markdown")
+    except Exception as e:
+        bot.reply_to(message, "🤖 AI রেসপন্স করতে পারছে না। দয়া করে কিছুক্ষণ পর আবার চেষ্টা করুন।")
+
 @bot.message_handler(commands=['dashboard', 'menu'])
 def direct_dashboard(message):
     if mess_data['mess_name']:
@@ -343,6 +389,6 @@ def direct_dashboard(message):
 if __name__ == "__main__":
     server_thread = threading.Thread(target=run_server)
     server_thread.start()
-    print("Bot is running...")
+    print("AI-Powered Mess Bot is running...")
     bot.infinity_polling()
-    
+        
