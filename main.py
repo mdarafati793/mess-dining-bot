@@ -2,9 +2,27 @@ import sys
 import time
 import sqlite3
 import requests
+from flask import Flask
+from threading import Thread
+
+# ---------------- FLASK SERVER (For UptimeRobot & Render) ----------------
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is running!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
+# সার্ভার সচল করা
+keep_alive()
 
 # ---------------- CONFIG & TOKEN ----------------
-# আপনার বট ফাদারের স্ক্রিনশট থেকে নেওয়া আসল টোকেন সরাসরি এখানে দেওয়া হলো
 TOKEN = "8581132689:AAF_x23qBXyzAjpckVTX602J80MSe8Pk0Oc"
 API_URL = f"https://api.telegram.org/bot{TOKEN}"
 
@@ -48,7 +66,6 @@ def answer_callback(callback_query_id):
         print(f"Error answering callback: {e}")
 
 # ---------------- FLOW CONTROLLER ----------------
-# ইউজারের বর্তমান স্টেট মনে রাখার জন্য মেমোরি ডিকশনারি
 user_states = {}
 
 def handle_text(chat_id, text):
@@ -107,7 +124,6 @@ def handle_text(chat_id, text):
             next_idx = data["idx"]
             send_message(chat_id, f"✍️ <b>({next_idx:02d}) নাম লিখো:</b>")
         else:
-            # ডাটাবেজে সেভ করা
             conn = db()
             c = conn.cursor()
             c.execute("INSERT OR REPLACE INTO settings VALUES('mess_name',?)", (data["mess_name"],))
@@ -141,7 +157,6 @@ def handle_callback(chat_id, message_id, callback_id, query_data):
         else:
             meals.append(meal)
 
-        # বাটন আপডেট
         keyboard = {
             "inline_keyboard": [
                 [{"text": "🌅 সকাল" + (" ✅" if "সকাল" in meals else ""), "callback_data": "sokal"},
@@ -173,13 +188,11 @@ def main():
                 for update in updates:
                     offset = update["update_id"] + 1
                     
-                    # টেক্সট মেসেজ হ্যান্ডেল করা
                     if "message" in update and "text" in update["message"]:
                         chat_id = update["message"]["chat"]["id"]
                         text = update["message"]["text"]
                         handle_text(chat_id, text)
                     
-                    # বাটন ক্লিক হ্যান্ডেল করা
                     elif "callback_query" in update:
                         cb = update["callback_query"]
                         chat_id = cb["message"]["chat"]["id"]
@@ -196,4 +209,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-          
+        
