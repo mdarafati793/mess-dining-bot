@@ -5,7 +5,7 @@ import threading
 import google.generativeai as genai
 
 # --- API টোকেন ও কী সেটআপ ---
-TOKEN = "8581132689:AAF_x23qBXyzAjpckVTX602J80MSe8Pk0Oc"
+TOKEN = "8581132689:AAGAS0Yu94ndDp9hrm1oAcicYkQuy7hqZAA"
 GEMINI_KEY = "AIzaSyDZIkwrK-B9EfcpgtMLKOX1eNY0S4ZRULM"
 
 bot = telebot.TeleBot(TOKEN)
